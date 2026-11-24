@@ -1,0 +1,1179 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>화학 실험 데이터 대시보드</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<style>
+  :root{
+    --bg:#f4f6fb; --card:#ffffff; --ink:#0f172a; --mute:#64748b; --line:#e2e8f0;
+    --pri:#2563eb; --pri-soft:#eff6ff; --pri-ink:#1d4ed8; --radius:14px;
+    --shadow:0 1px 2px rgba(15,23,42,.04), 0 4px 16px rgba(15,23,42,.05);
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0}
+  body{
+    font-family:"Pretendard","Apple SD Gothic Neo","Malgun Gothic","Noto Sans KR",system-ui,-apple-system,sans-serif;
+    background:var(--bg); color:var(--ink); line-height:1.5; -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:1280px; margin:0 auto; padding:24px 20px 48px}
+  header.top{display:flex; align-items:center; justify-content:space-between; gap:16px; margin-bottom:18px; flex-wrap:wrap}
+  .brand{display:flex; align-items:center; gap:14px}
+  .logo{width:46px; height:46px; border-radius:12px; background:linear-gradient(135deg,#2563eb,#7c3aed);
+        display:grid; place-items:center; font-size:24px; box-shadow:0 6px 16px rgba(37,99,235,.25)}
+  h1{font-size:21px; margin:0; letter-spacing:-.02em}
+  .brand p{margin:2px 0 0; color:var(--mute); font-size:13.5px}
+  .tools{display:flex; flex-wrap:wrap; gap:8px; align-items:center}
+  .chk{display:flex; align-items:center; gap:6px; font-size:12.5px; color:var(--mute); cursor:pointer; margin-left:4px}
+
+  .tabs{display:flex; flex-wrap:wrap; gap:8px; background:var(--card); padding:6px; border-radius:var(--radius);
+        box-shadow:var(--shadow); border:1px solid var(--line)}
+  .tab{flex:1 1 140px; border:0; background:transparent; padding:12px 14px; border-radius:10px; cursor:pointer;
+       font:inherit; font-weight:600; font-size:15px; color:var(--mute); transition:.15s; display:flex; gap:8px;
+       align-items:center; justify-content:center}
+  .tab:hover{background:#f1f5f9; color:var(--ink)}
+  .tab[aria-selected="true"]{background:var(--pri); color:#fff; box-shadow:0 4px 12px rgba(37,99,235,.3)}
+  .subtabs{display:flex; flex-wrap:wrap; gap:8px; margin-top:10px}
+  .subtabs[hidden]{display:none}
+  .pill{border:1px solid var(--line); background:var(--card); padding:7px 14px; border-radius:999px; cursor:pointer;
+        font:inherit; font-size:13.5px; font-weight:600; color:var(--mute); transition:.15s}
+  .pill:hover{border-color:#cbd5e1; color:var(--ink)}
+  .pill[aria-selected="true"]{background:var(--pri-soft); border-color:#bfdbfe; color:var(--pri-ink)}
+
+  .grid{display:grid; grid-template-columns:390px minmax(0,1fr); gap:18px; margin-top:18px; align-items:start}
+  .card{background:var(--card); border:1px solid var(--line); border-radius:var(--radius); box-shadow:var(--shadow)}
+  .panel{padding:18px}
+  .panel h2{margin:0; font-size:16.5px; letter-spacing:-.01em}
+  .panel .desc{margin:6px 0 14px; color:var(--mute); font-size:13px}
+
+  /* 조(그룹) */
+  .groupbar{display:flex; flex-wrap:wrap; gap:6px; margin-bottom:10px}
+  .chip{display:flex; align-items:center; gap:2px; border:1px solid var(--line); background:#fff; border-radius:999px; padding:2px 10px 2px 6px}
+  .chip.active{border-color:var(--c, var(--pri)); background:#f8fafc; box-shadow:0 0 0 2px color-mix(in srgb, var(--c, var(--pri)) 18%, transparent)}
+  .chip .dot{width:18px; height:18px; border-radius:50%; border:2px solid var(--c); background:transparent; cursor:pointer; padding:0; flex:none}
+  .chip .dot.on{background:var(--c)}
+  .chip .cname{border:0; background:transparent; font:inherit; font-size:13px; font-weight:600; cursor:pointer; padding:4px 4px; color:var(--ink); max-width:110px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+  .chip.add{border-style:dashed; color:var(--mute); cursor:pointer; font:inherit; font-size:13px; font-weight:600; padding:5px 12px}
+  .chip.add:hover{color:var(--pri); border-color:var(--pri)}
+  .gedit{display:flex; gap:8px; margin-bottom:12px}
+  .gedit input{flex:1; min-width:0; padding:8px 10px; border:1px solid var(--line); border-radius:8px; font:inherit; font-size:14px}
+  .gedit .btn[disabled]{opacity:.4; cursor:not-allowed}
+
+  .params{display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:14px}
+  .params:empty{display:none}
+  .field{display:flex; flex-direction:column; gap:4px}
+  .field.full{grid-column:1/-1}
+  .field label{font-size:12px; font-weight:600; color:var(--mute)}
+  .field input[type=number], .field input[type=text], .field select{
+    width:100%; padding:8px 10px; border:1px solid var(--line); border-radius:8px; font:inherit; font-size:14px;
+    background:#fff; color:var(--ink)}
+  .field.check{flex-direction:row; align-items:center; gap:8px}
+  .field.check label{font-size:13px; color:var(--ink); font-weight:500; cursor:pointer}
+  input:focus, select:focus{outline:2px solid #93c5fd; outline-offset:0; border-color:var(--pri)}
+
+  .table-wrap{max-height:380px; overflow:auto; border:1px solid var(--line); border-radius:10px}
+  table{width:100%; border-collapse:collapse; font-size:14px}
+  thead th{position:sticky; top:0; background:#f8fafc; font-size:12.5px; color:var(--mute); text-align:center;
+           padding:9px 6px; border-bottom:1px solid var(--line); font-weight:600; z-index:1}
+  tbody td{padding:4px 5px; border-bottom:1px solid #f1f5f9; text-align:center}
+  tbody tr:last-child td{border-bottom:0}
+  td.idx{color:#94a3b8; font-size:12px; width:34px}
+  td input{width:100%; padding:7px 8px; border:1px solid transparent; border-radius:7px; font:inherit;
+           font-size:14px; text-align:center; background:#f8fafc; font-variant-numeric:tabular-nums}
+  td input:hover{border-color:var(--line)}
+  td input:focus{background:#fff}
+  .del{border:0; background:transparent; color:#cbd5e1; cursor:pointer; font-size:14px; padding:4px 6px; border-radius:6px}
+  .del:hover{color:#ef4444; background:#fef2f2}
+
+  .toolbar{display:flex; flex-wrap:wrap; gap:8px; margin-top:12px}
+  .btn{border:1px solid var(--line); background:#fff; padding:8px 12px; border-radius:9px; font:inherit; font-size:13px;
+       font-weight:600; cursor:pointer; color:var(--ink); transition:.15s}
+  .btn:hover{background:#f8fafc; border-color:#cbd5e1}
+  .btn.primary{background:var(--pri); border-color:var(--pri); color:#fff}
+  .btn.primary:hover{background:var(--pri-ink)}
+  .btn.danger:hover{color:#dc2626; border-color:#fecaca; background:#fef2f2}
+  .hint{margin:12px 0 0; font-size:12px; color:#94a3b8}
+
+  .right{display:flex; flex-direction:column; gap:18px; min-width:0}
+  .chart-card{padding:16px}
+  .chart-box{position:relative; height:440px}
+  #chartImg{display:none}
+  .empty{position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center;
+         gap:10px; text-align:center; color:var(--mute); background:rgba(255,255,255,.92); border-radius:10px; padding:20px}
+  .empty[hidden]{display:none}
+  .empty .big{font-size:38px}
+  .empty strong{color:var(--ink); font-size:16px}
+  .empty .row{display:flex; flex-wrap:wrap; gap:8px; justify-content:center}
+  .results{padding:18px}
+  .results h3{margin:0 0 12px; font-size:15.5px}
+  .stats{display:grid; grid-template-columns:repeat(auto-fill,minmax(165px,1fr)); gap:10px}
+  .stat{background:#f8fafc; border:1px solid var(--line); border-radius:11px; padding:11px 13px}
+  .stat .lab{font-size:12px; color:var(--mute); font-weight:600}
+  .stat .val{font-size:19px; font-weight:700; margin-top:2px; letter-spacing:-.01em; font-variant-numeric:tabular-nums}
+  .stat .unit{font-size:12px; font-weight:500; color:var(--mute); margin-left:4px}
+  .stat.hl{background:var(--pri-soft); border-color:#bfdbfe}
+  .stat.hl .val{color:var(--pri-ink)}
+  .stat-empty{color:var(--mute); font-size:14px; padding:6px 2px}
+  .note{margin:14px 0 0; padding:11px 13px; background:#fffbeb; border:1px solid #fde68a; border-radius:10px;
+        font-size:13px; color:#78350f}
+  .note:empty{display:none}
+  .note ul{margin:0; padding-left:18px}
+
+  .tbl-wrap{overflow:auto}
+  .tbl{width:100%; border-collapse:collapse; font-size:13.5px}
+  .tbl th, .tbl td{padding:8px 10px; border-bottom:1px solid var(--line); text-align:right; font-variant-numeric:tabular-nums; position:static; white-space:nowrap}
+  .tbl th{background:#f8fafc; color:var(--mute); font-weight:600; font-size:12.5px}
+  .tbl th:first-child, .tbl td:first-child{text-align:left}
+  .tbl tbody tr:last-child td{border-bottom:0}
+  .tbl td.hl{font-weight:700; color:var(--pri-ink)}
+  .tbl .sub{display:block; font-size:11px; color:var(--mute); font-weight:500}
+  .swatch{display:inline-block; width:10px; height:10px; border-radius:50%; background:var(--c); margin-right:6px; vertical-align:baseline;
+          -webkit-print-color-adjust:exact; print-color-adjust:exact}
+
+  .toast{position:fixed; left:50%; bottom:28px; transform:translate(-50%,20px); background:#0f172a; color:#fff; padding:11px 18px;
+         border-radius:10px; font-size:13.5px; opacity:0; pointer-events:none; transition:.25s; z-index:50; max-width:90vw}
+  .toast.show{opacity:1; transform:translate(-50%,0)}
+  .toast.err{background:#b91c1c}
+
+  .print-only{display:none}
+
+  @media (max-width:980px){
+    .grid{grid-template-columns:1fr}
+    .chart-box{height:360px}
+  }
+
+  /* ---------- 인쇄 ---------- */
+  @media print{
+    @page{margin:12mm}
+    body{background:#fff; -webkit-print-color-adjust:exact; print-color-adjust:exact}
+    .wrap{padding:0; max-width:none}
+    .no-print, .opt-print, .empty{display:none !important}
+    body.print-analysis .opt-print{display:block !important}
+    .print-only{display:block}
+    .grid{display:block; margin:0}
+    .right{gap:12px}
+    .card{box-shadow:none; border:0; border-radius:0}
+    .chart-card{padding:0}
+    .chart-box{height:auto !important}
+    .chart-box canvas{display:none !important}
+    #chartImg{display:block !important; width:100%; height:auto}
+    .results{padding:0; margin-top:10px; break-inside:avoid}
+    #printHead{margin-bottom:10px; padding-bottom:8px; border-bottom:2px solid #0f172a}
+    #printHead h1{font-size:19px}
+    #printHead .meta{display:flex; justify-content:space-between; font-size:12.5px; margin-top:6px; color:#334155}
+    .pgrid{display:grid; grid-template-columns:repeat(auto-fill,minmax(52mm,1fr)); gap:10px; margin-top:10px}
+    .pt{break-inside:avoid}
+    .pt h4{margin:0 0 4px; font-size:13px}
+    .pt table{font-size:12px}
+    .pt th, .pt td{position:static; border:1px solid #cbd5e1; padding:3px 6px; text-align:right; background:#fff}
+    .pt th{background:#f1f5f9}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top no-print">
+    <div class="brand">
+      <div class="logo">⚗️</div>
+      <div>
+        <h1>화학 실험 데이터 대시보드</h1>
+        <p>실험 유형을 고르고 측정값을 입력하면 그래프가 바로 그려집니다</p>
+      </div>
+    </div>
+    <div class="tools">
+      <button class="btn" id="importBtn" type="button">📂 CSV 불러오기</button>
+      <button class="btn" id="csvBtn" type="button">💾 CSV 내보내기</button>
+      <button class="btn" id="pngBtn" type="button">🖼️ 그래프 PNG 저장</button>
+      <button class="btn primary" id="printBtn" type="button">🖨️ 인쇄</button>
+      <label class="chk"><input type="checkbox" id="printAnalysis"> 인쇄에 통계·분석 결과 포함</label>
+      <input type="file" id="fileInput" accept=".csv,.txt,text/csv" hidden>
+    </div>
+  </header>
+  <div class="print-only" id="printHead"></div>
+
+  <nav class="tabs no-print" id="tabs" role="tablist" aria-label="실험 유형"></nav>
+  <div class="subtabs no-print" id="subtabs" hidden role="tablist" aria-label="기체 법칙"></div>
+
+  <main class="grid">
+    <section class="card panel no-print">
+      <h2 id="specTitle"></h2>
+      <p class="desc" id="specDesc"></p>
+
+      <div class="groupbar" id="groupbar" aria-label="조 선택"></div>
+      <div class="gedit">
+        <input id="gname" type="text" maxlength="20" placeholder="조 이름 (예: 1조, KNO₃)" aria-label="선택한 조 이름">
+        <button class="btn danger" id="delGroup" type="button">이 조 삭제</button>
+      </div>
+
+      <div class="params" id="params"></div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr id="thead"></tr></thead>
+          <tbody id="tbody"></tbody>
+        </table>
+      </div>
+      <div class="toolbar">
+        <button class="btn primary" id="addBtn" type="button">＋ 행 추가</button>
+        <button class="btn" id="sampleBtn" type="button">예시 데이터</button>
+        <button class="btn danger" id="clearBtn" type="button">표 비우기</button>
+      </div>
+      <p class="hint">조 이름 왼쪽의 색 동그라미를 누르면 그래프에 표시/숨김이 바뀝니다. Enter로 다음 행으로 이동하고, 엑셀에서 복사한 값도 붙여넣을 수 있어요.</p>
+    </section>
+
+    <section class="right">
+      <div class="card chart-card">
+        <div class="chart-box">
+          <canvas id="chart"></canvas>
+          <img id="chartImg" alt="실험 그래프">
+          <div class="empty" id="empty">
+            <div class="big">📈</div>
+            <strong>아직 그릴 데이터가 없어요</strong>
+            <span>왼쪽 표에 측정값을 2개 이상 입력하면 그래프가 나타납니다.</span>
+            <div class="row">
+              <button class="btn primary" id="sampleBtn2" type="button">예시 데이터로 시작하기</button>
+              <button class="btn" id="sampleBtn3" type="button">조별 비교 예시 (3개 조)</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="print-only" id="printData"></div>
+
+      <div class="card results opt-print" id="basicCard">
+        <h3 id="basicTitle">기본 통계</h3>
+        <div class="tbl-wrap" id="basicStats"></div>
+      </div>
+
+      <div class="card results opt-print">
+        <h3>분석 결과</h3>
+        <div id="stats"></div>
+        <div class="note" id="note"></div>
+      </div>
+    </section>
+  </main>
+</div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script>
+(function(){
+'use strict';
+
+/* ================= 공통 유틸 ================= */
+const COLORS = ['#2563eb','#f97316','#16a34a','#dc2626','#7c3aed','#0891b2','#ca8a04','#db2777'];
+const MAX_GROUPS = 8;
+const AC1='#f97316', AC2='#16a34a', AC3='#dc2626', CG='#94a3b8';
+const $ = s => document.querySelector(s);
+const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const isNum = v => typeof v === 'number' && Number.isFinite(v);
+const num = v => { const s=String(v==null?'':v).trim(); return s==='' ? NaN : Number(s); };
+function fmt(v, d=3){
+  if(!isNum(v)) return '—';
+  const a = Math.abs(v);
+  if(a !== 0 && (a >= 1e5 || a < 1e-3)) return v.toExponential(2);
+  return String(Number(v.toFixed(d)));
+}
+const fmtExact = v => isNum(v) ? String(Number(v.toPrecision(7))) : '—';
+function linreg(pts){
+  const n = pts.length; if(n < 2) return null;
+  let sx=0, sy=0; pts.forEach(p=>{sx+=p[0]; sy+=p[1];});
+  const mx=sx/n, my=sy/n; let sxx=0, sxy=0, syy=0;
+  pts.forEach(p=>{const dx=p[0]-mx, dy=p[1]-my; sxx+=dx*dx; sxy+=dx*dy; syy+=dy*dy;});
+  if(sxx === 0) return null;
+  const slope = sxy/sxx, intercept = my - slope*mx;
+  const r2 = syy === 0 ? 1 : (sxy*sxy)/(sxx*syy);
+  return {slope, intercept, r2, n};
+}
+function curve(f, a, b, n=80){
+  const out=[];
+  for(let i=0;i<=n;i++){ const x=a+(b-a)*i/n, y=f(x); if(isNum(y)) out.push({x,y}); }
+  return out;
+}
+const pointsDS = (label, data, color, extra={}) => Object.assign({
+  label, data, showLine:true, borderColor:color, backgroundColor:color,
+  pointRadius:4, pointHoverRadius:7, hitRadius:12, borderWidth:2
+}, extra);
+const lineDS = (label, data, color, dash=[6,4]) => ({
+  label, data, showLine:true, borderColor:color, backgroundColor:color,
+  pointRadius:0, pointHoverRadius:0, hitRadius:0, borderWidth:2, borderDash:dash
+});
+const round = (v, d) => Math.round(v*Math.pow(10,d))/Math.pow(10,d);
+
+/* ================= 당량점(변곡점) 감지 ================= */
+// 구간별 기울기 |ΔpH/ΔV|가 가장 큰 구간을 찾고, 이웃 구간과 포물선으로 정점을 보정한다.
+function findEquivalence(pts){
+  const seg=[];
+  for(let i=0;i<pts.length-1;i++){
+    const dx=pts[i+1][0]-pts[i][0]; if(dx<=0) continue;
+    seg.push({i, mid:(pts[i][0]+pts[i+1][0])/2, s:Math.abs((pts[i+1][1]-pts[i][1])/dx)});
+  }
+  if(!seg.length) return null;
+  let j=0; seg.forEach((q,k)=>{ if(q.s > seg[j].s) j=k; });
+  const x0=pts[seg[j].i][0], x1=pts[seg[j].i+1][0], y0=pts[seg[j].i][1], y1=pts[seg[j].i+1][1];
+  let eq = seg[j].mid;
+  if(j>0 && j<seg.length-1){
+    const a=seg[j-1], b=seg[j], c=seg[j+1];
+    const d=(a.mid-b.mid)*(a.mid-c.mid)*(b.mid-c.mid);
+    if(d !== 0){
+      const A=(c.mid*(b.s-a.s)+b.mid*(a.s-c.s)+a.mid*(c.s-b.s))/d;
+      const B=(c.mid*c.mid*(a.s-b.s)+b.mid*b.mid*(c.s-a.s)+a.mid*a.mid*(b.s-c.s))/d;
+      if(A < 0){ const v=-B/(2*A); if(v>=x0 && v<=x1) eq=v; }
+    }
+  }
+  const ph = y0 + (y1-y0)*(eq-x0)/(x1-x0);
+  return {eq, ph, slope:seg[j].s, x0, x1};
+}
+
+/* ================= 실험별 정의 ================= */
+// build(pts, params, c): c = 조별 컨텍스트 (색, 이름, 다중 비교 여부 등)
+const SPECS = {
+
+  titration: {
+    title:'중화적정 곡선',
+    desc:'NaOH를 넣은 부피에 따른 pH 변화를 입력하세요. 기울기가 가장 큰 곳의 변곡점을 당량점으로 자동 표시합니다.',
+    csv:'중화적정',
+    cols:[{label:'NaOH 부피 (mL)', ph:'예: 24.9'},{label:'pH', ph:'예: 3.70'}],
+    params:[
+      {id:'va', label:'산 용액 부피 (mL)', type:'number', def:25},
+      {id:'cb', label:'NaOH 농도 (mol/L)', type:'number', def:0.1}
+    ],
+    sample(i){
+      const base=[[0,1.00],[5,1.18],[10,1.37],[15,1.60],[20,1.95],[22,2.20],[24,2.69],[24.5,3.00],[24.9,3.70],[25.1,10.30],[25.5,11.00],[26,11.29],[28,11.75],[30,11.96],[35,12.22]];
+      const f=1+0.03*i; return base.map(([x,y])=>[round(x*f,2), y]);
+    },
+    build(pts, p, c){
+      const ds=[pointsDS(c.main('pH 곡선'), pts.map(q=>({x:q[0],y:q[1]})), c.color, {cubicInterpolationMode:'monotone'})];
+      if(c.first) ds.push(lineDS('pH 7', [{x:c.xmin,y:7},{x:c.xmax,y:7}], CG, [2,4]));
+      const stats=[];
+      let note='당량점을 찾으려면 데이터가 3개 이상 필요합니다.';
+      const r = pts.length>=3 ? findEquivalence(pts) : null;
+      if(r){
+        ds.push(c.h(lineDS(c.L('당량점 위치'), [{x:r.eq,y:0},{x:r.eq,y:14}], c.a1)));
+        ds.push(c.h({
+          label:`${c.L('당량점')} ${fmt(r.eq,2)} mL`, data:[{x:r.eq,y:r.ph}], showLine:false,
+          pointStyle:'star', pointRadius:12, pointHoverRadius:14, hitRadius:14,
+          borderColor:c.a1, backgroundColor:c.a1, borderWidth:2,
+          tipTitle:c.L('당량점 (변곡점)'),
+          tip:[[`NaOH 부피: ${fmtExact(r.eq)} mL`, `pH: ${fmtExact(r.ph)}`]],
+          annot:{text:c.multi ? `${c.name} ${fmt(r.eq,2)} mL` : `당량점 ${fmt(r.eq,2)} mL`, dx:14, dy:22+14*c.index, align:'left'}
+        }));
+        const ca=(p.va>0 && p.cb>0) ? p.cb*r.eq/p.va : NaN;
+        stats.push(
+          {label:'당량점 부피', value:fmt(r.eq,2), unit:'mL', hl:true},
+          {label:'당량점 pH', value:fmt(r.ph,2), hl:true},
+          {label:'최대 기울기', value:fmt(r.slope,1), unit:'pH/mL'},
+          {label:'급변 구간', value:`${fmt(r.x0,2)}~${fmt(r.x1,2)}`, unit:'mL'},
+          {label:'산의 농도 (추정)', value:fmt(ca,4), unit:'mol/L', hl:true}
+        );
+        note='pH가 가장 급격히 변하는 구간에서 기울기(ΔpH/ΔV)가 최대인 지점, 즉 곡선의 변곡점을 당량점으로 추정했습니다. 당량점 근처를 촘촘히 측정할수록 정확해요. 산의 농도는 1가 산·1가 염기를 가정하여 C산×V산 = C염기×V염기로 계산합니다.';
+      }
+      return {datasets:ds, xTitle:'NaOH 부피 (mL)', yTitle:'pH', title:'중화적정 곡선',
+              axis:{y:{suggestedMin:0, suggestedMax:14}}, stats, note};
+    }
+  },
+
+  kinetics: {
+    title:'반응속도 분석',
+    desc:'시간에 따른 반응물 농도 [A]를 입력하세요. 처음 두 점의 기울기로 초기 반응 속도를, 0·1·2차 모형 비교로 반응 차수를 추정합니다.',
+    csv:'반응속도',
+    cols:[{label:'시간 t (s)', ph:'예: 20'},{label:'농도 [A] (mol/L)', ph:'예: 0.670'}],
+    params:[
+      {id:'view', label:'그래프 보기', type:'select', full:true, def:'conc', options:[
+        {v:'conc', t:'[A] – t  (농도 변화 + 초기 기울기·최적 모형)'},
+        {v:'ln',   t:'ln[A] – t  (1차 반응이면 직선)'},
+        {v:'inv',  t:'1/[A] – t  (2차 반응이면 직선)'}
+      ]}
+    ],
+    sample(i){
+      const k=0.02*(1+0.5*i);
+      return [0,20,40,60,80,100,120,140].map(t=>[t, round(Math.exp(-k*t),3)]);
+    },
+    build(pts, p, c){
+      const pos = pts.filter(q=>q[1] > 0);
+      const fits = {
+        0: linreg(pts),
+        1: pos.length>=2 ? linreg(pos.map(q=>[q[0], Math.log(q[1])])) : null,
+        2: pos.length>=2 ? linreg(pos.map(q=>[q[0], 1/q[1]])) : null
+      };
+      const ok = pts.length >= 3;
+      let best = null;
+      if(ok) [0,1,2].forEach(n=>{ const f=fits[n]; if(f && (best===null || f.r2 > fits[best].r2)) best=n; });
+      const xs = pts.map(q=>q[0]), xmin=Math.min(...xs), xmax=Math.max(...xs);
+
+      // 초기 반응 속도: 시간 순으로 처음 두 점의 기울기
+      const [t1,a1]=pts[0], [t2,a2]=pts[1];
+      const dt=t2-t1;
+      const r0 = dt>0 ? -(a2-a1)/dt : NaN;
+
+      const ds=[]; let yTitle='농도 [A] (mol/L)', title='농도–시간 그래프';
+      if(p.view === 'ln'){
+        yTitle='ln[A]'; title='ln[A] – 시간 (1차 반응 확인)';
+        ds.push(pointsDS(c.main('ln[A]'), pos.map(q=>({x:q[0],y:Math.log(q[1])})), c.color, {showLine:false, pointRadius:5}));
+        const f=fits[1];
+        if(f) ds.push(c.h(lineDS(c.L(`선형 근사 (R² = ${fmt(f.r2,4)})`), [{x:xmin,y:f.intercept+f.slope*xmin},{x:xmax,y:f.intercept+f.slope*xmax}], c.a1)));
+      } else if(p.view === 'inv'){
+        yTitle='1/[A] (L/mol)'; title='1/[A] – 시간 (2차 반응 확인)';
+        ds.push(pointsDS(c.main('1/[A]'), pos.map(q=>({x:q[0],y:1/q[1]})), c.color, {showLine:false, pointRadius:5}));
+        const f=fits[2];
+        if(f) ds.push(c.h(lineDS(c.L(`선형 근사 (R² = ${fmt(f.r2,4)})`), [{x:xmin,y:f.intercept+f.slope*xmin},{x:xmax,y:f.intercept+f.slope*xmax}], c.a1)));
+      } else {
+        ds.push(pointsDS(c.main('측정값'), pts.map(q=>({x:q[0],y:q[1]})), c.color, {showLine:false, pointRadius:5}));
+        if(best !== null){
+          const f=fits[best];
+          const model = best===0 ? (x=>f.intercept+f.slope*x)
+                      : best===1 ? (x=>Math.exp(f.intercept+f.slope*x))
+                      : (x=>{const d=f.intercept+f.slope*x; return d>0 ? 1/d : NaN;});
+          ds.push(c.h(lineDS(c.L(`최적 모형 (${best}차)`), curve(model, xmin, xmax), c.a1, c.multi?[6,4]:[])));
+        }
+        if(dt>0){
+          const s=(a2-a1)/dt; let xe=Math.min(t1+3*dt, xmax);
+          if(s<0){ const xz=t1-a1/s; if(xz>=t2) xe=Math.min(xe,xz); }
+          if(xe < t2) xe = t2;
+          ds.push(c.h(lineDS(c.L(`초기 기울기 (${fmt(r0,4)} mol/(L·s))`), [{x:t1,y:a1},{x:xe,y:a1+s*(xe-t1)}], c.a2, [2,3])));
+        }
+      }
+
+      const stats=[{label:'초기 반응 속도 (처음 두 점)', value:fmt(r0,4), unit:'mol/(L·s)', hl:true}];
+      let note='초기 반응 속도는 시간 순으로 처음 두 데이터 점의 기울기 −Δ[A]/Δt로 계산합니다. 반응 차수를 판별하려면 데이터가 3개 이상 필요해요. (농도는 0보다 커야 ln, 1/[A]를 계산할 수 있습니다.)';
+      if(ok && best !== null){
+        const f=fits[best];
+        const k = best===2 ? f.slope : -f.slope;
+        const a0 = best===0 ? f.intercept : best===1 ? Math.exp(f.intercept) : 1/f.intercept;
+        const units = {0:'mol/(L·s)', 1:'s⁻¹', 2:'L/(mol·s)'};
+        let half = NaN;
+        if(k > 0){ half = best===0 ? a0/(2*k) : best===1 ? Math.LN2/k : 1/(k*a0); }
+        stats.push(
+          {label:'추정 반응 차수', value:best+'차', hl:true},
+          {label:'속도 상수 k', value:fmt(k,4), unit:units[best], hl:true},
+          {label:'반감기 t½', value:fmt(half,2), unit:'s'}
+        );
+        [0,1,2].forEach(n=> stats.push({label:`${n}차 모형 R²`, value:fits[n] ? fmt(fits[n].r2,4) : '—'}));
+        note='초기 반응 속도는 시간 순으로 처음 두 데이터 점의 기울기 −Δ[A]/Δt로 계산합니다. 반응 차수는 [A]–t, ln[A]–t, 1/[A]–t 중 직선성(R²)이 가장 높은 모형으로 추정하며, 측정점이 적거나 오차가 크면 판별이 불확실할 수 있어요.';
+      }
+      return {datasets:ds, xTitle:'시간 t (s)', yTitle, title, axis:{}, stats, note};
+    }
+  },
+
+  solubility: {
+    title:'용해도 곡선',
+    desc:'온도에 따른 용해도를 입력하세요. 조 이름을 물질 이름(예: KNO₃, NaCl)으로 바꾸면 물질별 비교 그래프가 됩니다.',
+    csv:'용해도',
+    cols:[{label:'온도 (°C)', ph:'예: 40'},{label:'용해도 (g/100 g 물)', ph:'예: 63.9'}],
+    params:[{id:'t', label:'보간할 온도 (°C)', type:'number', full:true, def:35}],
+    sampleNames:['KNO₃','NaCl','KCl'],
+    sample(i){
+      const T=[0,10,20,30,40,50,60,70,80];
+      const sets=[
+        [13.3,20.9,31.6,45.8,63.9,85.5,110,138,169],
+        [35.7,35.8,36.0,36.3,36.6,37.0,37.3,37.8,38.4],
+        [28.0,31.0,34.0,37.0,40.0,42.6,45.5,48.3,51.1]
+      ];
+      const s = sets[i] || sets[0].map(v=>round(v*(1-0.06*(i-2)),1));
+      return T.map((t,j)=>[t,s[j]]);
+    },
+    build(pts, p, c){
+      const ds=[pointsDS(c.main('용해도'), pts.map(q=>({x:q[0],y:q[1]})), c.color, {cubicInterpolationMode:'monotone'})];
+      const T=p.t; let interp=NaN;
+      if(isNum(T) && T>=pts[0][0] && T<=pts[pts.length-1][0]){
+        for(let i=0;i<pts.length-1;i++){
+          const [x0,y0]=pts[i], [x1,y1]=pts[i+1];
+          if(T>=x0 && T<=x1){ interp = x1===x0 ? y0 : y0 + (y1-y0)*(T-x0)/(x1-x0); break; }
+        }
+      }
+      if(isNum(interp)){
+        ds.push(c.h({
+          label:`${c.L(fmt(T,1)+' °C 보간값')}`, data:[{x:T,y:interp}], showLine:false, pointStyle:'rectRot',
+          pointRadius:9, pointHoverRadius:11, hitRadius:12, backgroundColor:c.a1, borderColor:c.a1,
+          tipTitle:c.L('보간값'), tip:[[`온도: ${fmtExact(T)} °C`, `용해도: ${fmtExact(interp)} g/100 g`]],
+          annot:{text:`${fmt(interp,1)}`, dx:-12, dy:-14-14*c.index, align:'right'}
+        }));
+      }
+      const reg = linreg(pts);
+      let top = pts[0]; pts.forEach(q=>{ if(q[1] > top[1]) top = q; });
+      const stats = [
+        {label:`${isNum(T)?fmt(T,1):'—'} °C 용해도 (보간)`, value:isNum(interp)?fmt(interp,2):'범위 밖', unit:isNum(interp)?'g/100 g':'', hl:true},
+        {label:'최대 용해도', value:fmt(top[1],2), unit:'g/100 g'},
+        {label:'최대일 때 온도', value:fmt(top[0],1), unit:'°C'},
+        {label:'평균 변화율 (회귀)', value:reg?fmt(reg.slope,3):'—', unit:'g/100 g·°C'}
+      ];
+      const note = '보간값은 인접한 두 측정점을 직선으로 이은 근삿값입니다. 보간 온도가 입력한 온도 범위 안에 있어야 계산돼요. 측정 간격이 촘촘할수록 정확합니다.';
+      return {datasets:ds, xTitle:'온도 (°C)', yTitle:'용해도 (g/100 g 물)', title:'용해도 곡선', axis:{}, stats, note};
+    }
+  },
+
+  gas_boyle: {
+    title:'기체법칙 · 보일 법칙',
+    desc:'온도가 일정할 때 압력 P와 부피 V의 관계(PV = 일정)를 확인합니다.',
+    csv:'보일법칙',
+    cols:[{label:'압력 P (kPa)', ph:'예: 150'},{label:'부피 V (mL)', ph:'예: 33.2'}],
+    params:[
+      {id:'view', label:'그래프 보기', type:'select', full:true, def:'vp', options:[
+        {v:'vp',  t:'V – P  (반비례 곡선)'},
+        {v:'inv', t:'V – 1/P  (원점을 지나는 직선)'}
+      ]}
+    ],
+    sample(i){
+      const k=5000*(1+0.05*i), n=[1,-1,0.5,-0.5,1,-1];
+      return [100,125,150,200,250,300].map((P,j)=>[P, round(k/P*(1+0.003*n[j]),1)]);
+    },
+    build(pts, p, c){
+      const pos = pts.filter(q=>q[0]>0 && q[1]>0);
+      const prods = pos.map(q=>q[0]*q[1]);
+      const n = prods.length;
+      const mean = n ? prods.reduce((a,b)=>a+b,0)/n : NaN;
+      const sd = n>1 ? Math.sqrt(prods.reduce((a,b)=>a+(b-mean)*(b-mean),0)/(n-1)) : NaN;
+      const cv = isNum(sd) && mean ? sd/mean*100 : NaN;
+      const ds=[]; const axis={y:{min:0}}; let xTitle='압력 P (kPa)', title='압력–부피 그래프';
+      if(p.view === 'inv'){
+        xTitle='1/P (1/kPa)'; title='V – 1/P 그래프';
+        const data = pos.map(q=>({x:1/q[0], y:q[1]}));
+        ds.push(pointsDS(c.main('측정값'), data, c.color, {showLine:false, pointRadius:5}));
+        if(isNum(mean) && data.length){
+          const mx = Math.max(...data.map(d=>d.x))*1.05;
+          ds.push(c.h(lineDS(c.L(`V = ${fmt(mean,1)}×(1/P)`), [{x:0,y:0},{x:mx,y:mean*mx}], c.a1, c.multi?[6,4]:[])));
+        }
+        axis.x={min:0};
+      } else {
+        ds.push(pointsDS(c.main('측정값'), pos.map(q=>({x:q[0],y:q[1]})), c.color, {showLine:false, pointRadius:5}));
+        if(isNum(mean) && pos.length){
+          const xs=pos.map(q=>q[0]); const a=Math.min(...xs), b=Math.max(...xs);
+          const pad=(b-a)*0.05 || a*0.1;
+          ds.push(c.h(lineDS(c.L(`PV = ${fmt(mean,1)} (일정)`), curve(x=>mean/x, Math.max(a-pad,a*0.5), b+pad), c.a1, c.multi?[6,4]:[])));
+        }
+      }
+      const stats = [
+        {label:'PV 평균', value:fmt(mean,1), unit:'kPa·mL', hl:true},
+        {label:'PV 표준편차', value:fmt(sd,1), unit:'kPa·mL'},
+        {label:'변동계수 (CV)', value:fmt(cv,2), unit:'%', hl:true}
+      ];
+      const note = '압력과 부피는 0보다 커야 합니다. PV 값의 변동계수가 5 % 미만이면 PV가 거의 일정해 보일 법칙이 잘 성립한다고 볼 수 있어요.';
+      return {datasets:ds, xTitle, yTitle:'부피 V (mL)', title, axis, stats, note};
+    }
+  },
+
+  gas_charles: {
+    title:'기체법칙 · 샤를 법칙',
+    desc:'압력이 일정할 때 온도(°C)와 부피 V의 관계를 확인하고, 직선을 외삽해 절대영도를 추정합니다.',
+    csv:'샤를법칙',
+    cols:[{label:'온도 T (°C)', ph:'예: 40'},{label:'부피 V (mL)', ph:'예: 57.1'}],
+    params:[{id:'extrap', label:'절대영도까지 외삽하여 표시', type:'checkbox', full:true, def:true}],
+    sample(i){
+      const v0=50+2*i, n=[0.2,-0.1,0.3,-0.2,0.1,0.2];
+      return [0,20,40,60,80,100].map((T,j)=>[T, round(v0*(1+T/273.15)+n[j],1)]);
+    },
+    build(pts, p, c){ return gasLinear(pts, p, c, {yName:'부피', yUnit:'mL', yTitle:'부피 V (mL)', title:'샤를 법칙: 온도–부피 그래프'}); }
+  },
+
+  gas_gaylussac: {
+    title:'기체법칙 · 게이뤼삭 법칙',
+    desc:'부피가 일정할 때 온도(°C)와 압력 P의 관계를 확인하고, 직선을 외삽해 절대영도를 추정합니다.',
+    csv:'게이뤼삭법칙',
+    cols:[{label:'온도 T (°C)', ph:'예: 50'},{label:'압력 P (kPa)', ph:'예: 118.4'}],
+    params:[{id:'extrap', label:'절대영도까지 외삽하여 표시', type:'checkbox', full:true, def:true}],
+    sample(i){
+      const p0=100+4*i, n=[0.1,-0.05,0.15,-0.1,0.05,0.1];
+      return [0,25,50,75,100].map((T,j)=>[T, round(p0*(1+T/273.15)+n[j],1)]);
+    },
+    build(pts, p, c){ return gasLinear(pts, p, c, {yName:'압력', yUnit:'kPa', yTitle:'압력 P (kPa)', title:'게이뤼삭 법칙: 온도–압력 그래프'}); }
+  }
+};
+
+function gasLinear(pts, p, c, o){
+  const xs = pts.map(q=>q[0]), xmin=Math.min(...xs), xmax=Math.max(...xs);
+  const reg = linreg(pts);
+  const ds = [pointsDS(c.main(`${o.yName} 측정값`), pts.map(q=>({x:q[0],y:q[1]})), c.color, {showLine:false, pointRadius:5})];
+  const stats=[]; const axis={};
+  let note='온도가 서로 다른 데이터가 2개 이상 있어야 직선을 그릴 수 있습니다.';
+  if(reg){
+    const abs0 = -reg.intercept/reg.slope;
+    const showAbs = !!p.extrap && isNum(abs0) && reg.slope > 0 && abs0 < xmin && abs0 > -1000;
+    const x0 = showAbs ? abs0 : xmin;
+    ds.push(c.h(lineDS(c.L(`선형 근사 (R² = ${fmt(reg.r2,4)})`),
+      [{x:x0,y:reg.intercept+reg.slope*x0},{x:xmax,y:reg.intercept+reg.slope*xmax}], c.multi ? c.color : C1_)));
+    if(showAbs){
+      ds.push(c.h({label:c.L(`추정 절대영도 (${fmt(abs0,1)} °C)`), data:[{x:abs0,y:0}], showLine:false, pointStyle:'rectRot',
+               pointRadius:9, pointHoverRadius:11, hitRadius:12, backgroundColor:c.a3, borderColor:c.a3,
+               tipTitle:c.L('추정 절대영도'), tip:[[`온도: ${fmtExact(abs0)} °C`, `${o.yName}: 0 ${o.yUnit}`]]}));
+      axis.y = {min:0};
+    }
+    const valid = isNum(abs0) && reg.slope > 0;
+    const err = valid ? Math.abs(abs0 + 273.15) : NaN;
+    stats.push(
+      {label:'기울기', value:fmt(reg.slope,4), unit:o.yUnit+'/°C'},
+      {label:'0 °C에서의 '+o.yName, value:fmt(reg.intercept,2), unit:o.yUnit},
+      {label:'추정 절대영도', value:valid?fmt(abs0,1):'—', unit:'°C', hl:true},
+      {label:'이론값(−273.15 °C)과 차이', value:valid?fmt(err,1):'—', unit:valid?`°C (${fmt(err/273.15*100,1)} %)`:'', hl:true},
+      {label:'결정계수 R²', value:fmt(reg.r2,4)}
+    );
+    note = `온도(°C)와 ${o.yName}${o.yName === '부피' ? '가' : '이'} 직선 관계일 때 법칙이 성립합니다. 직선을 외삽한 x절편이 절대영도(−273.15 °C)에 가까울수록 측정이 정확했다는 뜻이에요.`;
+  }
+  return {datasets:ds, xTitle:'온도 T (°C)', yTitle:o.yTitle, title:o.title, axis, stats, note};
+}
+const C1_ = '#2563eb';
+
+const EXPS = [
+  {id:'titration',  label:'중화적정', icon:'🧪'},
+  {id:'kinetics',   label:'반응속도', icon:'⏱️'},
+  {id:'solubility', label:'용해도',   icon:'💧'},
+  {id:'gas',        label:'기체법칙', icon:'🎈'}
+];
+const GAS_LAWS = [
+  {id:'boyle',     label:'보일 법칙 (P–V)'},
+  {id:'charles',   label:'샤를 법칙 (T–V)'},
+  {id:'gaylussac', label:'게이뤼삭 법칙 (T–P)'}
+];
+
+/* ================= 상태 ================= */
+const blankRows = (n=6) => Array.from({length:n}, ()=>['','']);
+const newGroup = name => ({name, rows:blankRows(), visible:true});
+const state = {exp:'titration', gasLaw:'boyle', groups:{}, active:{}, params:{}};
+Object.keys(SPECS).forEach(k=>{
+  state.groups[k] = [newGroup('1조')];
+  state.active[k] = 0;
+  state.params[k] = {};
+  SPECS[k].params.forEach(pd=>{ state.params[k][pd.id] = pd.def; });
+});
+const getKey  = () => state.exp === 'gas' ? 'gas_'+state.gasLaw : state.exp;
+const getSpec = () => SPECS[getKey()];
+const curGroups = () => state.groups[getKey()];
+const curGroup = () => curGroups()[state.active[getKey()]];
+const dn = (g,i) => (g.name||'').trim() || `이름 없음`;
+const groupHasData = g => g.rows.some(r=>r[0]!=='' || r[1]!=='');
+const keyHasData = key => state.groups[key].some(groupHasData);
+
+function getPoints(g){
+  const pts=[];
+  g.rows.forEach(r=>{
+    const x=num(r[0]), y=num(r[1]);
+    if(isNum(x) && isNum(y)) pts.push([x,y]);
+  });
+  return pts.sort((a,b)=>a[0]-b[0]);
+}
+
+let toastT=null;
+function toast(msg, kind){
+  const t=$('#toast'); t.textContent=msg; t.className='toast show'+(kind==='err'?' err':'');
+  clearTimeout(toastT); toastT=setTimeout(()=>{ t.className='toast'; }, 3400);
+}
+const stamp = () => { const d=new Date(), p=n=>String(n).padStart(2,'0'); return `${d.getFullYear()}${p(d.getMonth()+1)}${p(d.getDate())}`; };
+const todayKo = () => { const d=new Date(); return `${d.getFullYear()}년 ${d.getMonth()+1}월 ${d.getDate()}일`; };
+
+/* ================= 계산 (조별) ================= */
+function compute(onlyVisible){
+  const key=getKey(), spec=SPECS[key], list=curGroups();
+  const shown=list.map((g,gi)=>({g,gi,pts:getPoints(g)})).filter(o=>!onlyVisible || o.g.visible);
+  const multi=shown.length>1;
+  const allx=[].concat(...shown.map(o=>o.pts.map(q=>q[0])));
+  const xmin=allx.length?Math.min(...allx):0, xmax=allx.length?Math.max(...allx):1;
+  let first=true, idx=0;
+  return shown.map(o=>{
+    const color=COLORS[o.gi%COLORS.length], name=dn(o.g,o.gi);
+    const c={
+      name, color, multi, first, index:idx++, xmin, xmax,
+      a1:multi?color:AC1, a2:multi?color:AC2, a3:multi?color:AC3,
+      main:l=>multi?name:l,
+      L:s=>multi?`${name} ${s}`:s,
+      h:ds=>{ if(multi) ds.noLegend=true; return ds; }
+    };
+    let res=null;
+    if(o.pts.length>=2){ res=spec.build(o.pts, state.params[key], c); first=false; }
+    return {g:o.g, gi:o.gi, name, pts:o.pts, color, res};
+  });
+}
+
+/* ================= 차트 ================= */
+let chart=null;
+let chartMeta={xTitle:'', yTitle:''};
+const bgPlugin = {id:'whiteBg', beforeDraw(c){
+  const ctx=c.ctx; ctx.save(); ctx.globalCompositeOperation='destination-over';
+  ctx.fillStyle='#fff'; ctx.fillRect(0,0,c.width,c.height); ctx.restore();
+}};
+// 당량점·보간값 같은 강조점 옆에 값을 적어 준다
+const annotPlugin = {id:'annot', afterDatasetsDraw(c){
+  const ctx=c.ctx, area=c.chartArea;
+  c.data.datasets.forEach((ds,i)=>{
+    if(!ds.annot || !c.isDatasetVisible(i)) return;
+    const el=c.getDatasetMeta(i).data[0]; if(!el) return;
+    let {text,dx,dy,align}=ds.annot;
+    ctx.save();
+    ctx.font='600 12px '+(Chart.defaults.font.family||'sans-serif');
+    const w=ctx.measureText(text).width;
+    let tx=el.x+dx, al=align;
+    if(al==='left' && tx+w>area.right){ tx=el.x-dx; al='right'; }
+    else if(al==='right' && tx-w<area.left){ tx=el.x-dx; al='left'; }
+    ctx.textAlign=al; ctx.textBaseline='middle';
+    ctx.lineWidth=4; ctx.strokeStyle='#fff'; ctx.strokeText(text,tx,el.y+dy);
+    ctx.fillStyle=ds.borderColor; ctx.fillText(text,tx,el.y+dy);
+    ctx.restore();
+  });
+}};
+function initChart(){
+  if(typeof Chart === 'undefined'){
+    const e=$('#empty');
+    e.innerHTML='<div class="big">⚠️</div><strong>Chart.js를 불러오지 못했어요</strong><span>인터넷 연결을 확인한 뒤 페이지를 새로고침해 주세요.</span>';
+    e.hidden=false; return;
+  }
+  Chart.defaults.font.family = '"Pretendard","Apple SD Gothic Neo","Malgun Gothic","Noto Sans KR",system-ui,sans-serif';
+  chart = new Chart($('#chart'), {
+    type:'scatter',
+    data:{datasets:[]},
+    plugins:[bgPlugin, annotPlugin],
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      animation:{duration:200},
+      interaction:{mode:'nearest', intersect:true},
+      plugins:{
+        legend:{
+          position:'bottom',
+          labels:{usePointStyle:true, boxWidth:10, padding:16,
+                  filter:(item, data)=>!data.datasets[item.datasetIndex].noLegend}
+        },
+        title:{display:true, text:'', font:{size:16, weight:'600'}, padding:{bottom:10}},
+        tooltip:{
+          padding:10, boxPadding:4,
+          callbacks:{
+            title:items=>{ const ds=items[0].dataset; return ds.tipTitle || ds.label; },
+            label:c=>{
+              const t=c.dataset.tip && c.dataset.tip[c.dataIndex];
+              if(t) return t;
+              return [`${chartMeta.xTitle}: ${fmtExact(c.parsed.x)}`, `${chartMeta.yTitle}: ${fmtExact(c.parsed.y)}`];
+            }
+          }
+        }
+      },
+      scales:{
+        x:{type:'linear', title:{display:true, text:'', font:{weight:'600'}}, grid:{color:'#eef2f7'}},
+        y:{type:'linear', title:{display:true, text:'', font:{weight:'600'}}, grid:{color:'#eef2f7'}}
+      }
+    }
+  });
+}
+
+/* ================= 렌더링 ================= */
+function renderTabs(){
+  $('#tabs').innerHTML = EXPS.map(e=>
+    `<button class="tab" role="tab" data-exp="${e.id}" aria-selected="${state.exp===e.id}"><span>${e.icon}</span>${e.label}</button>`).join('');
+  const sub=$('#subtabs');
+  sub.hidden = state.exp !== 'gas';
+  sub.innerHTML = GAS_LAWS.map(l=>
+    `<button class="pill" role="tab" data-law="${l.id}" aria-selected="${state.gasLaw===l.id}">${l.label}</button>`).join('');
+}
+function renderHead(){
+  const s=getSpec();
+  $('#specTitle').textContent = s.title;
+  $('#specDesc').textContent = s.desc;
+  $('#thead').innerHTML = '<th>#</th>' + s.cols.map(c=>`<th>${esc(c.label)}</th>`).join('') + '<th></th>';
+  $('#printHead').innerHTML = `<h1>화학 실험 결과 · ${esc(s.title)}</h1><div class="meta"><span>${todayKo()}</span><span>학년·반·이름: ______________________</span></div>`;
+}
+function renderGroupbar(){
+  const key=getKey(), gs=state.groups[key], act=state.active[key];
+  $('#groupbar').innerHTML = gs.map((g,i)=>
+    `<div class="chip${i===act?' active':''}" style="--c:${COLORS[i%COLORS.length]}">`+
+      `<button type="button" class="dot${g.visible?' on':''}" data-toggle="${i}" aria-pressed="${g.visible}" title="${g.visible?'그래프에서 숨기기':'그래프에 표시'}" aria-label="${esc(dn(g,i))} 그래프 표시 전환"></button>`+
+      `<button type="button" class="cname" data-select="${i}">${esc(dn(g,i))}</button>`+
+    `</div>`).join('') +
+    (gs.length<MAX_GROUPS ? `<button type="button" class="chip add" id="addGroup">＋ 조 추가</button>` : '');
+  const gn=$('#gname');
+  if(document.activeElement !== gn) gn.value = gs[act].name;
+  $('#delGroup').disabled = gs.length<=1;
+}
+function renderParams(){
+  const key=getKey(), s=SPECS[key], vals=state.params[key];
+  $('#params').innerHTML = s.params.map(pd=>{
+    const id=`p_${pd.id}`, v=vals[pd.id], cls='field'+(pd.full?' full':'')+(pd.type==='checkbox'?' check':'');
+    if(pd.type==='select'){
+      return `<div class="${cls}"><label for="${id}">${esc(pd.label)}</label><select id="${id}" data-pid="${pd.id}">`+
+        pd.options.map(o=>`<option value="${o.v}"${o.v===v?' selected':''}>${esc(o.t)}</option>`).join('')+`</select></div>`;
+    }
+    if(pd.type==='checkbox'){
+      return `<div class="${cls}"><input type="checkbox" id="${id}" data-pid="${pd.id}"${v?' checked':''}><label for="${id}">${esc(pd.label)}</label></div>`;
+    }
+    const val = pd.type==='number' ? (isNum(v)?v:'') : (v||'');
+    return `<div class="${cls}"><label for="${id}">${esc(pd.label)}</label>`+
+      `<input id="${id}" data-pid="${pd.id}" type="${pd.type}"${pd.type==='number'?' step="any" inputmode="decimal"':''} value="${esc(val)}"></div>`;
+  }).join('');
+}
+function renderTable(){
+  const s=getSpec(), rows=curGroup().rows;
+  $('#tbody').innerHTML = rows.map((r,i)=>
+    `<tr><td class="idx">${i+1}</td>`+
+    r.map((v,c)=>`<td><input type="number" step="any" inputmode="decimal" data-r="${i}" data-c="${c}" placeholder="${esc(s.cols[c].ph||'')}" value="${esc(v)}"></td>`).join('')+
+    `<td><button class="del" type="button" data-del="${i}" title="이 행 삭제" aria-label="${i+1}번 행 삭제">✕</button></td></tr>`).join('');
+}
+
+const dot = color => `<span class="swatch" style="--c:${color}"></span>`;
+
+function renderBasic(results){
+  const spec=getSpec();
+  const rows=results.filter(r=>r.pts.length>=1);
+  $('#basicTitle').textContent = `기본 통계 · ${spec.cols[1].label}`;
+  if(!rows.length){
+    $('#basicStats').innerHTML='<div class="stat-empty">데이터를 입력하면 평균·최대값·최솟값이 표시됩니다.</div>'; return;
+  }
+  const body=rows.map(r=>{
+    const ys=r.pts.map(q=>q[1]), n=ys.length;
+    const mean=ys.reduce((a,b)=>a+b,0)/n;
+    let mx=r.pts[0], mn=r.pts[0]; r.pts.forEach(q=>{ if(q[1]>mx[1]) mx=q; if(q[1]<mn[1]) mn=q; });
+    r.basic={n, mean, max:mx[1], maxX:mx[0], min:mn[1], minX:mn[0]};
+    return `<tr><td>${dot(r.color)}${esc(r.name)}</td><td>${n}</td><td>${fmt(mean,4)}</td>`+
+      `<td>${fmt(mx[1],4)}<span class="sub">${esc(spec.cols[0].label.split(' (')[0])} = ${fmt(mx[0],3)}</span></td>`+
+      `<td>${fmt(mn[1],4)}<span class="sub">${esc(spec.cols[0].label.split(' (')[0])} = ${fmt(mn[0],3)}</span></td></tr>`;
+  }).join('');
+  $('#basicStats').innerHTML = `<table class="tbl"><thead><tr><th>조</th><th>데이터 수</th><th>평균</th><th>최대값</th><th>최솟값</th></tr></thead><tbody>${body}</tbody></table>`;
+}
+
+function renderAnalysis(results){
+  const box=$('#stats'), noteBox=$('#note');
+  const withRes=results.filter(r=>r.res);
+  if(!withRes.length){
+    box.innerHTML='<div class="stat-empty">데이터를 2개 이상 입력하면 분석 결과가 표시됩니다.</div>';
+    noteBox.innerHTML=''; return;
+  }
+  if(results.length===1){
+    const r=withRes[0];
+    const all=[{label:'유효 데이터', value:String(r.pts.length), unit:'개'}].concat(r.res.stats);
+    box.innerHTML = '<div class="stats">'+all.map(s=>
+      `<div class="stat${s.hl?' hl':''}"><div class="lab">${esc(s.label)}</div><div class="val">${esc(s.value)}${s.unit?`<span class="unit">${esc(s.unit)}</span>`:''}</div></div>`).join('')+'</div>';
+    noteBox.textContent = r.res.note || '';
+    return;
+  }
+  // 여러 조: 조별 비교표
+  const labels=[]; const hlMap={};
+  withRes.forEach(r=>r.res.stats.forEach(s=>{ if(!(s.label in hlMap)){ labels.push(s.label); hlMap[s.label]=!!s.hl; } }));
+  const head=`<tr><th>항목</th>${results.map(r=>`<th>${dot(r.color)}${esc(r.name)}</th>`).join('')}</tr>`;
+  const rowCount=`<tr><td>유효 데이터</td>${results.map(r=>`<td>${r.pts.length}개</td>`).join('')}</tr>`;
+  const body=labels.map(l=>`<tr><td>${esc(l)}</td>`+results.map(r=>{
+    const s=r.res && r.res.stats.find(x=>x.label===l);
+    return `<td class="${hlMap[l]?'hl':''}">${s ? esc(s.value)+(s.unit?` <span class="sub" style="display:inline">${esc(s.unit)}</span>`:'') : '—'}</td>`;
+  }).join('')+'</tr>').join('');
+  box.innerHTML = `<div class="tbl-wrap"><table class="tbl"><thead>${head}</thead><tbody>${rowCount}${body}</tbody></table></div>`;
+  const notes=withRes.map(r=>r.res.note||'');
+  if(notes.every(n=>n===notes[0])) noteBox.textContent = notes[0];
+  else noteBox.innerHTML = '<ul>'+withRes.map(r=>`<li><b>${esc(r.name)}</b> — ${esc(r.res.note||'')}</li>`).join('')+'</ul>';
+  if(results.some(r=>!r.res)) noteBox.innerHTML += `<div style="margin-top:6px">데이터가 2개 미만인 조는 그래프와 분석에서 제외됩니다.</div>`;
+}
+
+function renderPrintData(results){
+  const spec=getSpec();
+  const rows=results.filter(r=>r.pts.length>=1);
+  $('#printData').innerHTML = rows.length ? '<div class="pgrid">'+rows.map(r=>
+    `<div class="pt"><h4>${dot(r.color)}${esc(r.name)}</h4><table><thead><tr><th>${esc(spec.cols[0].label)}</th><th>${esc(spec.cols[1].label)}</th></tr></thead><tbody>`+
+    r.pts.map(q=>`<tr><td>${fmtExact(q[0])}</td><td>${fmtExact(q[1])}</td></tr>`).join('')+`</tbody></table></div>`).join('')+'</div>' : '';
+}
+
+let imgT=null;
+function refreshPrintImg(){
+  if(!chart) return;
+  try{ $('#chartImg').src = chart.toBase64Image('image/png',1); }catch(e){}
+}
+function schedulePrintImg(){ clearTimeout(imgT); imgT=setTimeout(refreshPrintImg, 380); }
+
+function update(){
+  const key=getKey(), spec=SPECS[key];
+  const results=compute(true);
+  const drawn=results.filter(r=>r.res);
+  if(chart){
+    $('#empty').hidden = drawn.length>0;
+    const datasets=[]; const axis={x:{},y:{}};
+    drawn.forEach(r=>{
+      datasets.push(...r.res.datasets);
+      ['x','y'].forEach(a=>Object.assign(axis[a], (r.res.axis && r.res.axis[a]) || {}));
+    });
+    const f=drawn[0] && drawn[0].res;
+    ['x','y'].forEach(a=>['min','max','suggestedMin','suggestedMax'].forEach(k=>{
+      chart.options.scales[a][k] = axis[a][k];
+    }));
+    chartMeta = {xTitle: f?f.xTitle:spec.cols[0].label, yTitle: f?f.yTitle:spec.cols[1].label};
+    chart.options.scales.x.title.text = chartMeta.xTitle;
+    chart.options.scales.y.title.text = chartMeta.yTitle;
+    chart.options.plugins.title.text  = f ? f.title + (results.length>1 ? ' — 조별 비교' : '') : spec.title;
+    chart.data.datasets = datasets;
+    chart.update();
+  }
+  renderBasic(results);
+  renderAnalysis(results);
+  renderPrintData(results);
+  schedulePrintImg();
+}
+function renderAll(){ renderTabs(); renderHead(); renderGroupbar(); renderParams(); renderTable(); update(); }
+
+/* ================= CSV ================= */
+function csvCell(v){
+  const s = v==null ? '' : String(v);
+  return /[",\r\n]/.test(s) ? '"'+s.replace(/"/g,'""')+'"' : s;
+}
+function buildCSV(){
+  const key=getKey(), spec=SPECS[key], exp=EXPS.find(e=>e.id===state.exp);
+  const rows=[];
+  rows.push(['실험유형', exp.label]);
+  rows.push(['세부유형', state.exp==='gas' ? GAS_LAWS.find(l=>l.id===state.gasLaw).label : '']);
+  rows.push(['내보낸 날짜', todayKo()]);
+  rows.push([]);
+  rows.push(['[데이터]']);
+  rows.push(['조', spec.cols[0].label, spec.cols[1].label]);
+  const all=compute(false);
+  all.forEach(r=>r.pts.forEach(q=>rows.push([r.name, q[0], q[1]])));
+  rows.push([]);
+  rows.push(['[기본 통계]']);
+  rows.push(['조','데이터 수',`평균 (${spec.cols[1].label})`,'최대값','최대값의 x','최솟값','최솟값의 x']);
+  all.forEach(r=>{
+    if(!r.pts.length) return;
+    const ys=r.pts.map(q=>q[1]), n=ys.length, mean=ys.reduce((a,b)=>a+b,0)/n;
+    let mx=r.pts[0], mn=r.pts[0]; r.pts.forEach(q=>{ if(q[1]>mx[1]) mx=q; if(q[1]<mn[1]) mn=q; });
+    rows.push([r.name, n, fmtExact(mean), mx[1], mx[0], mn[1], mn[0]]);
+  });
+  rows.push([]);
+  rows.push(['[분석 결과]']);
+  rows.push(['조','항목','값','단위']);
+  all.forEach(r=>{ if(r.res) r.res.stats.forEach(s=>rows.push([r.name, s.label, s.value, s.unit||''])); });
+  return rows.map(r=>r.map(csvCell).join(',')).join('\r\n');
+}
+function download(href, name){
+  const a=document.createElement('a'); a.href=href; a.download=name;
+  document.body.appendChild(a); a.click(); a.remove();
+}
+function exportCSV(){
+  const spec=getSpec();
+  if(!compute(false).some(r=>r.pts.length)){ toast('내보낼 데이터가 없어요. 먼저 측정값을 입력해 주세요.','err'); return; }
+  const url=URL.createObjectURL(new Blob(['﻿'+buildCSV()],{type:'text/csv;charset=utf-8'}));
+  download(url, `${spec.csv}_${stamp()}.csv`);
+  setTimeout(()=>URL.revokeObjectURL(url), 1500);
+  toast('CSV 파일로 저장했어요. (데이터 + 기본 통계 + 분석 결과)');
+}
+function parseCSV(text){
+  text=text.replace(/^﻿/,'');
+  const first=text.split(/\r?\n/).find(l=>l.trim()!=='')||'';
+  const cnt=ch=>first.split(ch).length-1;
+  let d=','; if(cnt('\t')>cnt(',')) d='\t'; else if(cnt(';')>cnt(',')) d=';';
+  const rows=[]; let row=[], cell='', q=false;
+  for(let i=0;i<text.length;i++){
+    const ch=text[i];
+    if(q){ if(ch==='"'){ if(text[i+1]==='"'){ cell+='"'; i++; } else q=false; } else cell+=ch; }
+    else if(ch==='"') q=true;
+    else if(ch===d){ row.push(cell); cell=''; }
+    else if(ch==='\n' || ch==='\r'){ if(ch==='\r' && text[i+1]==='\n') i++; row.push(cell); rows.push(row); row=[]; cell=''; }
+    else cell+=ch;
+  }
+  if(cell!=='' || row.length){ row.push(cell); rows.push(row); }
+  return rows;
+}
+function importText(text){
+  const rows=parseCSV(text).map(r=>r.map(c=>c.trim()));
+  let exp=null, law=null;
+  rows.forEach(r=>{
+    if(r[0]==='실험유형'){ const e=EXPS.find(x=>x.label===r[1]); if(e) exp=e.id; }
+    if(r[0]==='세부유형' && r[1]){ const l=GAS_LAWS.find(x=>r[1].startsWith(x.label.split(' ')[0])); if(l) law=l.id; }
+  });
+  const entries=[];
+  const di=rows.findIndex(r=>r[0]==='[데이터]');
+  if(di>=0){
+    for(let i=di+1;i<rows.length;i++){
+      const r=rows[i];
+      if(!r.length || r.every(c=>c==='') || /^\[.*\]$/.test(r[0])) break;
+      const x=num(r[1]), y=num(r[2]);
+      if(isNum(x) && isNum(y)) entries.push({name:r[0]||'1조', x, y});
+    }
+  } else {
+    const grouped=rows.some(r=>r.length>=3 && r[0]!=='' && !isNum(num(r[0])) && isNum(num(r[1])) && isNum(num(r[2])));
+    rows.forEach(r=>{
+      if(grouped){
+        const x=num(r[1]), y=num(r[2]);
+        if(r[0]!=='' && isNum(x) && isNum(y)) entries.push({name:r[0], x, y});
+      } else {
+        const x=num(r[0]), y=num(r[1]);
+        if(isNum(x) && isNum(y)) entries.push({name:'1조', x, y});
+      }
+    });
+  }
+  if(!entries.length){ toast('불러올 수 있는 숫자 데이터를 찾지 못했어요. (첫 열 x값, 둘째 열 y값 또는 조·x·y 형식)','err'); return false; }
+  const map=new Map();
+  entries.forEach(e=>{ if(!map.has(e.name)) map.set(e.name,[]); map.get(e.name).push([String(e.x),String(e.y)]); });
+  let names=[...map.keys()], trimmed=false;
+  if(names.length>MAX_GROUPS){ names=names.slice(0,MAX_GROUPS); trimmed=true; }
+  const tkey = exp ? (exp==='gas' ? 'gas_'+(law||state.gasLaw) : exp) : getKey();
+  if(keyHasData(tkey) && typeof confirm==='function' && !confirm('현재 입력된 데이터를 불러온 파일의 데이터로 바꿀까요?')) return false;
+  if(exp){ state.exp=exp; if(exp==='gas' && law) state.gasLaw=law; }
+  state.groups[tkey]=names.map(n=>({name:n, rows:map.get(n).concat([['',''],['','']]), visible:true}));
+  state.active[tkey]=0;
+  renderAll();
+  const total=names.reduce((a,n)=>a+map.get(n).length,0);
+  toast(`불러오기 완료: ${SPECS[tkey].title} · ${names.length}개 조, 데이터 ${total}개`+(trimmed?` (조는 최대 ${MAX_GROUPS}개까지)`:''));
+  return true;
+}
+function readFile(file){
+  if(!file) return;
+  const fr=new FileReader();
+  fr.onload=()=>{
+    const buf=fr.result; let text;
+    try{ text=new TextDecoder('utf-8',{fatal:true}).decode(buf); }
+    catch(e){ try{ text=new TextDecoder('euc-kr').decode(buf); }catch(e2){ toast('파일을 읽지 못했어요. UTF-8 CSV로 저장해 주세요.','err'); return; } }
+    importText(text);
+  };
+  fr.onerror=()=>toast('파일을 읽지 못했어요.','err');
+  fr.readAsArrayBuffer(file);
+}
+
+/* ================= 이벤트 ================= */
+$('#tabs').addEventListener('click', e=>{
+  const b=e.target.closest('[data-exp]'); if(!b) return;
+  state.exp=b.dataset.exp; renderAll();
+});
+$('#subtabs').addEventListener('click', e=>{
+  const b=e.target.closest('[data-law]'); if(!b) return;
+  state.gasLaw=b.dataset.law; renderAll();
+});
+
+// 조 관리
+function addGroup(){
+  const key=getKey(), gs=state.groups[key];
+  if(gs.length>=MAX_GROUPS){ toast(`조는 최대 ${MAX_GROUPS}개까지 만들 수 있어요.`,'err'); return; }
+  let n=gs.length+1; while(gs.some(g=>g.name===`${n}조`)) n++;
+  gs.push(newGroup(`${n}조`)); state.active[key]=gs.length-1;
+  renderGroupbar(); renderTable(); update();
+  $('#gname').focus(); $('#gname').select();
+}
+$('#groupbar').addEventListener('click', e=>{
+  const key=getKey(), gs=state.groups[key];
+  const t=e.target.closest('[data-toggle]');
+  if(t){ const g=gs[+t.dataset.toggle]; g.visible=!g.visible; renderGroupbar(); update(); return; }
+  const s=e.target.closest('[data-select]');
+  if(s){ state.active[key]=+s.dataset.select; renderGroupbar(); renderTable(); return; }
+  if(e.target.closest('#addGroup')) addGroup();
+});
+$('#gname').addEventListener('input', e=>{
+  const key=getKey(); state.groups[key][state.active[key]].name=e.target.value;
+  renderGroupbar(); update();
+});
+$('#gname').addEventListener('blur', e=>{
+  const key=getKey(), g=state.groups[key][state.active[key]];
+  if(!g.name.trim()){ g.name=`${state.active[key]+1}조`; e.target.value=g.name; renderGroupbar(); update(); }
+});
+$('#delGroup').addEventListener('click', ()=>{
+  const key=getKey(), gs=state.groups[key];
+  if(gs.length<=1) return;
+  const g=gs[state.active[key]];
+  if(groupHasData(g) && typeof confirm==='function' && !confirm(`‘${dn(g)}’ 조의 데이터를 삭제할까요?`)) return;
+  gs.splice(state.active[key],1);
+  state.active[key]=Math.max(0, Math.min(state.active[key], gs.length-1));
+  renderGroupbar(); renderTable(); update();
+});
+
+// 매개변수
+$('#params').addEventListener('input', onParam);
+$('#params').addEventListener('change', onParam);
+function onParam(e){
+  const el=e.target.closest('[data-pid]'); if(!el) return;
+  const key=getKey(), pd=SPECS[key].params.find(p=>p.id===el.dataset.pid);
+  state.params[key][pd.id] = pd.type==='checkbox' ? el.checked : pd.type==='number' ? parseFloat(el.value) : el.value;
+  update();
+}
+
+// 데이터 표
+const tbody=$('#tbody');
+tbody.addEventListener('input', e=>{
+  const t=e.target; if(!t.matches('input[data-r]')) return;
+  curGroup().rows[+t.dataset.r][+t.dataset.c] = t.value;
+  update();
+});
+tbody.addEventListener('keydown', e=>{
+  const t=e.target;
+  if(e.key !== 'Enter' || !t.matches('input[data-r]')) return;
+  e.preventDefault();
+  const rows=curGroup().rows, r=+t.dataset.r, c=+t.dataset.c;
+  if(r === rows.length-1){ rows.push(['','']); renderTable(); }
+  const next = tbody.querySelector(`input[data-r="${r+1}"][data-c="${c}"]`);
+  if(next){ next.focus(); next.select(); }
+});
+tbody.addEventListener('click', e=>{
+  const b=e.target.closest('[data-del]'); if(!b) return;
+  const rows=curGroup().rows; rows.splice(+b.dataset.del,1);
+  if(!rows.length) rows.push(['','']);
+  renderTable(); update();
+});
+tbody.addEventListener('paste', e=>{
+  const t=e.target; if(!t.matches('input[data-r]')) return;
+  const text=((e.clipboardData||window.clipboardData).getData('text')||'');
+  if(!/[\t\n]/.test(text.trim())) return;
+  e.preventDefault();
+  const lines=text.trim().split(/\r?\n/).map(l=>l.split('\t'));
+  const rows=curGroup().rows, r0=+t.dataset.r, c0=+t.dataset.c;
+  lines.forEach((cells,i)=>{
+    const r=r0+i; while(rows.length<=r) rows.push(['','']);
+    cells.forEach((v,j)=>{
+      const c=c0+j; if(c>1) return;
+      const n=parseFloat(String(v).replace(/,/g,''));
+      rows[r][c] = isNum(n) ? String(n) : '';
+    });
+  });
+  renderTable(); update();
+});
+
+$('#addBtn').addEventListener('click', ()=>{
+  const rows=curGroup().rows; rows.push(['','']); renderTable();
+  const last=tbody.querySelector(`input[data-r="${rows.length-1}"][data-c="0"]`);
+  if(last){ last.focus(); last.scrollIntoView({block:'nearest'}); }
+});
+function loadSample(){
+  const key=getKey(), g=curGroup(), gi=state.active[key];
+  if(groupHasData(g) && typeof confirm === 'function' && !confirm('현재 조의 데이터를 예시 데이터로 바꿀까요?')) return;
+  g.rows = SPECS[key].sample(gi).map(r=>[String(r[0]), String(r[1])]);
+  renderTable(); update();
+}
+function loadSampleGroups(n){
+  const key=getKey(), spec=SPECS[key];
+  if(keyHasData(key) && typeof confirm === 'function' && !confirm('입력된 데이터를 조별 비교 예시(3개 조)로 바꿀까요?')) return;
+  state.groups[key]=Array.from({length:n},(_,i)=>({
+    name:(spec.sampleNames && spec.sampleNames[i]) || `${i+1}조`,
+    rows:spec.sample(i).map(r=>[String(r[0]),String(r[1])]), visible:true
+  }));
+  state.active[key]=0;
+  renderGroupbar(); renderTable(); update();
+}
+$('#sampleBtn').addEventListener('click', loadSample);
+$('#sampleBtn2').addEventListener('click', loadSample);
+$('#sampleBtn3').addEventListener('click', ()=>loadSampleGroups(3));
+$('#clearBtn').addEventListener('click', ()=>{
+  const g=curGroup();
+  if(groupHasData(g) && typeof confirm === 'function' && !confirm('현재 조의 표를 비울까요?')) return;
+  g.rows = blankRows(); renderTable(); update();
+});
+
+// 파일 / 이미지 / 인쇄
+$('#csvBtn').addEventListener('click', exportCSV);
+$('#importBtn').addEventListener('click', ()=>$('#fileInput').click());
+$('#fileInput').addEventListener('change', e=>{ readFile(e.target.files[0]); e.target.value=''; });
+document.addEventListener('dragover', e=>{ if(e.dataTransfer && [...(e.dataTransfer.types||[])].includes('Files')) e.preventDefault(); });
+document.addEventListener('drop', e=>{
+  if(e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length){ e.preventDefault(); readFile(e.dataTransfer.files[0]); }
+});
+
+$('#pngBtn').addEventListener('click', ()=>{
+  if(!chart || !compute(true).some(r=>r.res)){ toast('저장할 그래프가 없어요. 먼저 데이터를 입력해 주세요.','err'); return; }
+  const old=chart.options.devicePixelRatio;
+  let url;
+  try{
+    chart.options.devicePixelRatio = Math.max(2, window.devicePixelRatio||1);
+    if(chart.resize) chart.resize();
+    url = chart.toBase64Image('image/png',1);
+  } finally {
+    chart.options.devicePixelRatio = old;
+    if(chart.resize) chart.resize();
+  }
+  download(url, `${getSpec().csv}_그래프_${stamp()}.png`);
+  toast('그래프를 PNG 이미지로 저장했어요.');
+});
+
+$('#printBtn').addEventListener('click', ()=>{ refreshPrintImg(); window.print(); });
+$('#printAnalysis').addEventListener('change', e=>document.body.classList.toggle('print-analysis', e.target.checked));
+window.addEventListener('beforeprint', ()=>{ renderHead(); refreshPrintImg(); });
+
+// (점검용) 외부에서 호출할 수 있는 최소한의 핸들
+window.chemDash = {importText, buildCSV, compute, state};
+
+/* ================= 시작 ================= */
+initChart();
+renderAll();
+})();
+</script>
+</body>
+</html>
